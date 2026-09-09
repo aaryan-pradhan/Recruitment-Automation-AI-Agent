@@ -73,8 +73,8 @@ Rate limiting: `django-ratelimit`, backed by Redis in production
 1. Clone the repository
 
 ```bash
-git clone https://github.com/mohitgupta4873/Recruitment_Automation_AI_Agent.git
-cd Recruitment_Automation_AI_Agent
+git clone https://github.com/aaryan-pradhan/Recruitment-Automation-AI-Agent.git
+cd Recruitment-Automation-AI-Agent
 ```
 
 2. Set up a virtual environment
@@ -139,6 +139,10 @@ If you want to test the LinkedIn cross-post feature: create an app at [LinkedIn 
 ```bash
 python manage.py test
 ```
+
+📄 Docs
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a map of the codebase, data model, and request flow. See [CONTRIBUTING.md](CONTRIBUTING.md) for attribution and how to contribute.
 
 📍 Status
 
