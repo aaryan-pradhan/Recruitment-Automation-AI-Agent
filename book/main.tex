@@ -1,0 +1,29 @@
+\documentclass[11pt,oneside]{book}
+\input{preamble}
+
+\title{Recruitment Automation AI Agent\\[0.3em]\large Interview edition: every CV line, defended}
+\author{Aaryan Pradhan}
+\date{}
+\ifdefined\only\includeonly{\only}\fi   % set by `make review CH=NN`
+
+\begin{document}
+\frontmatter
+\maketitle
+\tableofcontents
+\include{chapters/00-front}
+
+\mainmatter
+\part{The pitch}
+\include{chapters/01-thirty-seconds}
+\include{chapters/02-three-minutes}
+\part{Every CV line}
+\include{chapters/03-objective}
+\include{chapters/04-langgraph-agent}
+\include{chapters/05-gemini-scoring}
+\include{chapters/06-fastapi-workspace}
+\part{The honest part}
+\include{chapters/07-limits}
+
+\backmatter
+\printindex
+\end{document}

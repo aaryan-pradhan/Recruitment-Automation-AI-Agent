@@ -1,0 +1,26 @@
+\chapter{The 30-second version}
+\label{ch:thirty}
+
+\begin{sayit}[Say this when they say ``tell me about this project'']
+I built a recruitment automation agent with LangGraph and Gemini. A recruiter types a role; the agent drafts the job description and loops on their feedback until it's approved, posts it with a Google Form, pulls the CVs from Drive, has Gemini turn the job description into role criteria and scores every CV against them, then sends calendar invites and result emails through Gmail. It ran on an async FastAPI backend with Google Workspace APIs and a live status dashboard, ranked over 500 candidates, and cut the recruiter's hands-on time per role by about 80\%.
+\end{sayit}
+
+\begin{sayit}[The four CV lines, and the numbers on each]
+\begin{itemize}
+  \item \textbf{Objective:} an end-to-end multi-agent LLM system for sourcing, CV parsing and ranking.
+  \item \textbf{Bullet 1:} a multi-step LangGraph agent: sourcing, CV parsing, shortlisting; cycle time cut by 80\%.
+  \item \textbf{Bullet 2:} Gemini writes the job description and drives CV evaluation; 500+ candidates ranked.
+  \item \textbf{Bullet 3:} async FastAPI backend; Google Workspace APIs for scheduling, emails and a live dashboard.
+\end{itemize}
+\end{sayit}
+
+\begin{sayit}[Memory cues]
+\begin{itemize}
+  \item The human approves three things: the job description, the shortlist, the final picks.
+  \item Graph + shared state; loop until APPROVED.
+  \item Inbound, not scraped: a LinkedIn post and a Google Form.
+  \item One Gemini call per role turns the job description into criteria; every CV is scored against them.
+  \item $-80\%$ hands-on minutes per role; 500+ applications, all roles together.
+  \item Raise it yourself: sends inside the request (double-send risk), a blocking call in async code, full Drive access.
+\end{itemize}
+\end{sayit}

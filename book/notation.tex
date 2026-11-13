@@ -1,0 +1,75 @@
+% This book's own notation and boxes (loaded by preamble.tex).
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,decorations.pathmorphing}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,
+  breaklines=true,frame=single,rulecolor=\color{prec!50},xleftmargin=4pt,xrightmargin=4pt,
+  commentstyle=\color{prec},keywordstyle=\color{defc}\bfseries,showstringspaces=false,upquote=true,
+  aboveskip=6pt,belowskip=6pt}
+\newcommand{\code}[1]{\texttt{#1}}
+% The interview pitch for this chapter: what to say aloud. Opens each chapter; looks ahead on purpose.
+\newtcolorbox{sayit}[1][Say it in the interview]{slm,colback=thmc!8,colframe=thmc!80!black,title={#1},fonttitle=\bfseries\small}
+% One interview question: \begin{iq}[\core]{Question text} ... \end{iq}  (\core = a core prep question)
+\newcommand{\core}{$\bigstar$\ }
+\newtcolorbox{iq}[2][]{slm,colback=defc!3,colframe=defc!60,title={#1Q.\ #2},fonttitle=\bfseries\small}
+\newcommand{\tests}[1]{\textit{What it tests:} #1\par}
+% ---- added for the converted prep pages ----
+\usepackage{tabularx,array}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}
+\DeclareUnicodeCharacter{2190}{\ensuremath{\leftarrow}}
+\DeclareUnicodeCharacter{2194}{\ensuremath{\leftrightarrow}}
+\DeclareUnicodeCharacter{2248}{\ensuremath{\approx}}
+\DeclareUnicodeCharacter{2212}{\ensuremath{-}}
+\DeclareUnicodeCharacter{2264}{\ensuremath{\le}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\ge}}
+\DeclareUnicodeCharacter{2260}{\ensuremath{\ne}}
+\DeclareUnicodeCharacter{03B5}{\ensuremath{\varepsilon}}
+\DeclareUnicodeCharacter{207F}{\ensuremath{^n}}
+\DeclareUnicodeCharacter{2717}{\ensuremath{\times}}
+\DeclareUnicodeCharacter{25C0}{\ensuremath{\blacktriangleleft}}
+\DeclareUnicodeCharacter{25B6}{\ensuremath{\blacktriangleright}}
+\DeclareUnicodeCharacter{22EE}{\ensuremath{\vdots}}
+% "In this project" (how the code does it), a measured result, and a bug found in the original version.
+\newtcolorbox{inproj}[1][In this project]{slm,colback=defc!2,colframe=defc!40,title={#1},fonttitle=\bfseries\small}
+\newtcolorbox{measured}[1][Result]{slm,colback=thmc!4,colframe=thmc!60,title={#1},fonttitle=\bfseries\small}
+\newtcolorbox{bugfix}[1][Bug found]{slm,colback=trapc!3,colframe=trapc!50,title={#1},fonttitle=\bfseries\small}
+% whiteboard colours (n a g r y v q)
+\colorlet{bdn}{white}\colorlet{bdnL}{prec!60}
+\colorlet{bda}{defc!12}\colorlet{bdaL}{defc}
+\colorlet{bdg}{thmc!12}\colorlet{bdgL}{thmc}
+\colorlet{bdr}{trapc!12}\colorlet{bdrL}{trapc}
+\colorlet{bdy}{intc!14}\colorlet{bdyL}{intc}
+\colorlet{bdv}{exc!12}\colorlet{bdvL}{exc}
+\colorlet{bdq}{prec!10}\colorlet{bdqL}{prec!60}
+\newenvironment{pic}{\par\noindent\begin{minipage}{\linewidth}\centering}{\end{minipage}\par}
+\setlength{\emergencystretch}{3em}   % long \code words: loosen the line instead of overflowing
+\newtcolorbox{cvline}{slm,colback=intc!10,colframe=intc!85!black,title={The CV line, word for word},fonttitle=\bfseries\small}
+\newcommand{\codehelp}[3]{\begin{inproj}[From the CodeHelp notes · #1]\centering\includegraphics[width=#2\linewidth]{figs/#3}\end{inproj}}
+\newcommand{\deeper}{\par\smallskip\noindent\textbf{If they dig deeper.} }
+\newcommand{\further}{\par\smallskip\noindent\textbf{One level further.} }
+\providecommand{\lt}{<}
+\providecommand{\gt}{>}
+\DeclareUnicodeCharacter{2080}{\ensuremath{_0}}
+\DeclareUnicodeCharacter{2081}{\ensuremath{_1}}
+\DeclareUnicodeCharacter{2082}{\ensuremath{_2}}
+\DeclareUnicodeCharacter{2083}{\ensuremath{_3}}
+\DeclareUnicodeCharacter{2084}{\ensuremath{_4}}
+\DeclareUnicodeCharacter{220E}{\ensuremath{\blacksquare}}
+\DeclareUnicodeCharacter{274C}{\ensuremath{\times}}
+\DeclareUnicodeCharacter{2713}{\ensuremath{\checkmark}}
+\DeclareUnicodeCharacter{2705}{\ensuremath{\checkmark}}
+\DeclareUnicodeCharacter{FE0F}{}
+\DeclareUnicodeCharacter{2208}{\ensuremath{\in}}
+\DeclareUnicodeCharacter{21C4}{\ensuremath{\rightleftarrows}}
+\DeclareUnicodeCharacter{2193}{\ensuremath{\downarrow}}
+\DeclareUnicodeCharacter{03A3}{\ensuremath{\Sigma}}
+\DeclareUnicodeCharacter{21B5}{\ensuremath{\hookleftarrow}}
+\DeclareUnicodeCharacter{26A0}{(!)}
+\DeclareUnicodeCharacter{2699}{*}
+\DeclareUnicodeCharacter{2764}{\ensuremath{\heartsuit}}
+\DeclareUnicodeCharacter{2500}{-}
+\DeclareUnicodeCharacter{2514}{+}
+\DeclareUnicodeCharacter{251C}{+}
+% Something the CV lines do not state: never invent it, say the safe version.
+\newtcolorbox{dontclaim}[1][Don't claim, unless your thesis says so]{slm,colback=trapc!3,colframe=trapc!70,title={#1},fonttitle=\bfseries\small}

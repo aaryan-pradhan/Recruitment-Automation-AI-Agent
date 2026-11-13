@@ -1,0 +1,71 @@
+\chapter{The 3-minute version}
+\label{ch:three}
+
+Four beats: Why, What, How, What now. Draw Board 1 during How. Every word used here is explained in plain language in the next four chapters.
+
+\begin{sayit}[Why ($\sim$30 s)]
+Small teams hire without an HR department. For every role someone writes a job description, posts it, reads every CV, picks a shortlist, books interviews and writes the result emails. Most of those hours are reading and emailing, and they grow with every applicant. We wanted the recruiter to only make the decisions.
+\end{sayit}
+
+\begin{sayit}[What ($\sim$30 s)]
+So we built an end-to-end recruitment agent. A recruiter types a role. The agent drafts the job description, posts it with an application form, pulls every CV, ranks them against the role, sends calendar invites to the shortlist, and sends the result emails at the end. It cut the recruiter's hands-on time per role by about 80\%, and ranked over 500 candidates.
+\end{sayit}
+
+\begin{sayit}[How ($\sim$80 s, draw Board 1)]
+First, the agent. I modelled the workflow as a LangGraph graph with one shared state: role, draft, recruiter feedback and a status. Gemini drafts the job description from a structured prompt, and a conditional edge loops back to redraft with the recruiter's feedback until they approve. The order of steps is fixed, so nothing reaches a candidate without approval.
+
+Second, screening. The approved description goes into a Google Form and a LinkedIn post. The agent pulls the responses, downloads each CV from Drive and extracts the text. Gemini turns the job description into role-specific criteria once, and every CV is scored against them, so the cost is flat in the number of applicants and every score shows what matched.
+
+Third, the service. It's an async FastAPI backend with login tokens and Postgres. Approval is a status machine, so posting is refused unless the description is approved. Google Workspace APIs handle the rest: calendar invites over Gmail, and a Sheet logging every response, score and email, next to a status dashboard.
+\end{sayit}
+
+\begin{sayit}[What now ($\sim$35 s)]
+What I'd improve: the matching is word-level, so I'd add embeddings for synonyms and a Gemini rubric that quotes evidence on the top slice. And bulk emails ran inside the request; they belong on a background queue with a sent-flag per candidate, so a retry never emails anyone twice. The project was later rebuilt that way. Happy to go into the graph, the scoring, or the backend.
+\end{sayit}
+
+\section{Board 1: the whole system}
+The one drawing to make in every interview. Boxes first, then the numbered arrows while you speak.
+
+\begin{sayit}[Board 1 · One role, start to finish]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=9mm,inner sep=3pt}]
+\node[box=bdn] (r) at (0,0) {recruiter:\\``AI developer''};
+\node[box=bdv] (jd) at (3.4,0) {Gemini\\drafts JD};
+\node[box=bdy] (ok) at (6.6,0) {recruiter\\approves?};
+\node[box=bda] (post) at (9.8,0) {LinkedIn post\\+ Google Form};
+\node[box=bda] (cv) at (9.8,-2.2) {pull CVs from\\Drive, read text};
+\node[box=bdv] (sc) at (6.6,-2.2) {Gemini criteria;\\score + rank};
+\node[box=bdg] (inv) at (3.4,-2.2) {invites +\\result emails};
+\node[box=bdq] (dash) at (0,-2.2) {Sheet log +\\dashboard};
+\draw[->] (r) -- node[above,font=\sffamily\scriptsize]{1} (jd);
+\draw[->] (jd) -- (ok);
+\draw[->] (ok) to[bend right=35] node[above,font=\sffamily\scriptsize]{2 feedback} (jd);
+\draw[->] (ok) -- node[above,font=\sffamily\scriptsize]{3 yes} (post);
+\draw[->] (post) -- node[right,font=\sffamily\scriptsize]{4} (cv);
+\draw[->] (cv) -- node[above,font=\sffamily\scriptsize]{5} (sc);
+\draw[->] (sc) -- node[above,font=\sffamily\scriptsize]{6} (inv);
+\draw[->] (inv) -- node[above,font=\sffamily\scriptsize]{7} (dash);
+\node[font=\sffamily\scriptsize,text=intc] at (5,-3.5) {all of it behind an async FastAPI backend, through Google Workspace APIs};
+\end{tikzpicture}
+\end{pic}
+\begin{enumerate}
+  \item ``The recruiter types a role; Gemini drafts the job description.''
+  \item ``The recruiter gives feedback and the agent redrafts, looping until it's approved.''
+  \item ``Only then is it posted, on LinkedIn with a Google Form to apply.''
+  \item ``The agent pulls the responses and downloads each CV from Drive.''
+  \item ``Gemini turns the job description into criteria; every CV is scored and ranked.''
+  \item ``The shortlist gets calendar invites; at the end everyone gets a result email.''
+  \item ``Every step is logged to a Sheet and shown on a status dashboard.''
+\end{enumerate}
+\end{sayit}
+
+\begin{sayit}[Numbers to have ready]
+\begin{itemize}
+  \item 80\%: recruiter hands-on minutes per role, request to invites sent, manual against agent.
+  \item 500+: applications ranked across all the roles it ran on.
+  \item Job description: 11 sections, at most 1,100 characters; Gemini 1.5 Flash.
+  \item Criteria: Gemini turns the JD into 8--15 skills; score $= 100 \times$ matched $\div$ total.
+  \item Interviews: from 10:00, 45-minute slots with 15-minute gaps, at most 8 a day, India time.
+\end{itemize}
+\end{sayit}

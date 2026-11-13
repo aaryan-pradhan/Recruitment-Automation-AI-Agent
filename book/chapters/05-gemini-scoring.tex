@@ -1,0 +1,183 @@
+\chapter{Bullet 2: Gemini for JDs and CV scoring}
+\label{ch:gemini}
+
+\begin{cvline}
+Integrated Gemini API for automated JD generation and context-aware CV evaluation, ranking 500+ candidates with LLM-driven scoring
+\end{cvline}
+
+%=====================================================================
+\section{Words you need}
+
+\subsection*{Writing the JD}
+
+\begin{definition}[Structured prompt]
+A \dfn{structured prompt} spells out exactly what the LLM must produce. The JD prompt gives Gemini a persona (an experienced recruiter), the role and experience level, the recruiter's feedback if any, and rules: 11 fixed sections (title, about, responsibilities, must-have, good-to-have, tech stack, impact, compensation, location, interview process, how to apply), at most 1,100 characters, inclusive and jargon-light, skills over college names.
+\end{definition}
+
+\begin{definition}[Refinement]
+\dfn{Refinement}: Sending Gemini the current draft plus the recruiter's feedback (``make it more senior'', ``remove the salary line'') and asking for a revised draft. This is the step the approval loop repeats.
+\end{definition}
+
+\begin{definition}[Hallucination]
+\dfn{Hallucination}: An LLM confidently writing something that isn't true. A JD prompt that says ``fill in anything missing'' can invent a salary or benefits. The guard here is the mandatory approval; the better fix is passing pay and perks as facts.
+\end{definition}
+
+\subsection*{Evaluating CVs}
+
+\begin{definition}[JSON]
+\dfn{JSON} is a plain-text format for structured data, for example \code{["python", "docker", "aws"]}. Asking Gemini for JSON lets the code read its answer reliably; the code still strips stray formatting and falls back safely if the answer isn't valid.
+\end{definition}
+
+\begin{definition}[Context-aware criteria]
+\dfn{Context-aware criteria}: The skills a CV is judged on come from \emph{this} role's JD, not a fixed list. Gemini reads the final JD once and returns a JSON list of 8--15 skills a strong CV for this role should show. If Gemini fails, a fallback list is used, so a role still launches.
+\end{definition}
+
+\begin{definition}[Coverage score]
+The \dfn{coverage score} of a CV is the share of the criteria it mentions:
+\[
+\text{score} = 100 \times \frac{\text{number of criteria found in the CV}}{\text{number of criteria}} .
+\]
+It runs from 0 to 100, and the matched skills are stored next to it, so every score explains itself.
+\end{definition}
+
+\begin{example}[Toy: one CV, 12 criteria]
+Gemini returns 12 skills for the role. The CV mentions 9 of them.
+\begin{steps}
+  \item $\text{score} = 100 \times 9/12 = 75$.
+  \item The three missing skills are listed too, which tells the recruiter what to ask about.
+\end{steps}
+\end{example}
+
+\begin{definition}[Whole-word matching]
+\dfn{Whole-word matching} counts a skill only where it appears as a separate word, using the regular expression \code{\textbackslash bskill\textbackslash b} (\code{\textbackslash b} marks a word boundary), ignoring case. Plain substring matching gives false hits: ``java'' inside ``javascript'', ``api'' inside ``therapist''.
+\end{definition}
+
+\begin{definition}[LLM-driven scoring, ranking]
+\dfn{LLM-driven scoring}: The LLM decides \emph{what} to look for (the criteria); plain code then scores every CV the same way. \textbf{Ranking}: sorting applicants by score; the top ones go to the Shortlist tab.
+\end{definition}
+
+\begin{definition}[Precision at K]
+To judge a ranking you need the recruiter's own verdicts. \dfn{Precision at $K$} is the share of the top $K$ ranked applicants the recruiter agrees are good; \dfn{recall at $K$} is the share of all good applicants that made the top $K$.
+\end{definition}
+
+\begin{example}[Toy: is the ranking any good?]
+The recruiter marks 6 applicants as strong. The agent's top 5 contains 4 of them.
+\begin{steps}
+  \item Precision at 5 $= 4/5 = 0.8$.
+  \item Recall at 5 $= 4/6 = 0.67$.
+\end{steps}
+\end{example}
+
+\begin{sayit}[Say it in 20 seconds]
+Gemini does two jobs. It writes the JD from a structured prompt, 11 sections and under 1,100 characters, and rewrites it from the recruiter's feedback. And it reads the final JD once and returns the skills a strong CV should show. Every CV is scored against that list with whole-word matching, 0 to 100 with the matched skills shown, and ranked. We ranked over 500 candidates that way.
+\end{sayit}
+
+%=====================================================================
+\section{The picture}
+
+\begin{sayit}[Board H · Inside the JD prompt]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=left,minimum height=8mm,inner sep=3pt,text width=36mm}]
+\node[box=bdq] (a) at (0,1.2) {persona: experienced recruiter};
+\node[box=bdq] (b) at (0,0.2) {role + experience};
+\node[box=bdq] (c) at (0,-0.8) {rules: 11 sections, $\le$ 1,100 chars, inclusive};
+\node[box=bdy] (d) at (0,-1.8) {recruiter feedback (if any)};
+\node[box=bdv,align=center,text width=22mm] (g) at (4.6,-0.3) {Gemini\\1.5 Flash};
+\node[box=bdg,align=center,text width=26mm] (j) at (8.4,-0.3) {Markdown JD\\for approval};
+\foreach \n in {a,b,c,d} \draw[->] (\n.east) -- (g.west);
+\draw[->] (g) -- (j);
+\end{tikzpicture}
+\end{pic}
+Say: ``The prompt fixes the format and the tone; the feedback slot is what the approval loop fills in on each redraft.''
+\end{sayit}
+
+\begin{sayit}[Board I · One Gemini call per role, not per CV]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=9mm,inner sep=3pt}]
+\node[box=bdq] (jd) at (0,0) {final JD};
+\node[box=bdv] (g) at (2.8,0) {Gemini\\(once)};
+\node[box=bdy] (k) at (5.8,0) {8--15 criteria\\(JSON)};
+\draw[->] (jd) -- (g); \draw[->] (g) -- (k);
+\foreach \y/\n in {1.2/CV 1,0.4/CV 2,-0.4/\dots,-1.2/CV 500} {\node[box=bdq,minimum height=6mm] (c) at (9,\y) {\n}; \draw[->] (k.east) -- (c.west);}
+\node[font=\sffamily\scriptsize,text=thmc,align=center] at (9,-2.1) {same rule for every CV:\\cost flat in applicants};
+\end{tikzpicture}
+\end{pic}
+Say: ``The expensive, smart step happens once per role. Scoring 500 CVs is then cheap, fast and repeatable: same CV, same score.''
+\end{sayit}
+
+\begin{sayit}[Board J · Whole words, not substrings]
+\begin{pic}
+\begin{tikzpicture}[font=\sffamily\small]
+\node[anchor=west] at (0,0.8) {CV text: ``built a \textbf{javascript} app; worked as a physio\textbf{therapist}''};
+\node[anchor=west,text=trapc] at (0,0) {substring: ``java'' found, ``api'' found $\to$ 2 false hits};
+\node[anchor=west,text=thmc] at (0,-0.8) {whole word \code{\textbackslash bjava\textbackslash b}, \code{\textbackslash bapi\textbackslash b}: 0 hits (correct)};
+\end{tikzpicture}
+\end{pic}
+Say: ``Word boundaries stop `java' matching inside `javascript'. A small regex change that removes a whole class of wrong scores.''
+\end{sayit}
+
+\begin{sayit}[Board K · A ranked shortlist (toy)]
+\begin{pic}
+\begin{tikzpicture}[font=\sffamily\small,x=0.06cm]
+\foreach \y/\n/\s/\c in {0/A. Rao/92/thmc,-0.6/B. Sen/83/thmc,-1.2/C. Iyer/75/thmc,-1.8/D. Das/58/prec,-2.4/E. Roy/42/prec} {
+  \node[anchor=east] at (-2,\y) {\n}; \fill[\c!30,draw=\c] (0,\y-0.2) rectangle (\s,\y+0.2); \node[anchor=west] at (\s+1,\y) {\s};}
+\draw[dashed,intc] (-25,-1.5) -- (105,-1.5); \node[anchor=west,text=intc] at (105,-1.5) {shortlist cut};
+\end{tikzpicture}
+\end{pic}
+Say: ``Sorted by coverage, matched skills shown beside each name. The recruiter sees why each person is where they are, and confirms the cut.'' (Names and scores made up.)
+\end{sayit}
+
+%=====================================================================
+\section{How it works}
+\begin{enumerate}
+  \item Gemini drafts the JD from the structured prompt; refinement redrafts it with feedback until approved.
+  \item Gemini reads the approved JD and returns 8--15 criteria as JSON (fallback list on failure).
+  \item Each CV's text is checked for every criterion as a whole word, ignoring case.
+  \item Score $= 100 \times$ matched $\div$ total; matched skills are saved alongside.
+  \item Applicants are sorted by score; the top go to the Shortlist tab for the recruiter.
+\end{enumerate}
+
+%=====================================================================
+\section{The number: 500+ candidates}
+
+\begin{measured}[The number]
+\begin{itemize}
+  \item \textbf{500+:} applications ranked, added up over every role it ran on.
+  \item \textbf{Cost:} one Gemini call per role for criteria (plus the JD drafts), however many applicants: 500 CVs did not mean 500 LLM calls.
+  \item \textbf{The catch:} there's no ``true best candidate'' label, so the ranking's quality wasn't measured; precision at $K$ against the recruiter's picks is how you would.
+\end{itemize}
+\end{measured}
+
+%=====================================================================
+\section{What they will ask}
+
+\begin{iq}[\core]{What makes the evaluation context-aware?}
+The criteria come from the role's own JD. Gemini reads it and lists what a strong CV for this role should show, so a data-engineer role and a frontend role are judged on different skills. Then every CV is checked against that list the same way.
+\deeper If pushed on history: the first cut scored against a fixed keyword list; deriving the criteria from each JD with Gemini replaced it.
+\end{iq}
+
+\begin{iq}[\core]{Why not have Gemini read and score every CV?}
+Cost, speed and consistency. One call per role is flat in the number of applicants; one call per CV grows with it. And the same CV always gets the same score with the matched skills shown, which an LLM judging free-form wouldn't guarantee. The plan was to add a Gemini rubric only on the top slice, quoting evidence from each CV.
+\end{iq}
+
+\begin{iq}[\core]{How would you know the ranking is good?}
+Compare it with the recruiter's own judgement: precision and recall at $K$ on roles where they marked who was strong. We didn't have that labelled set; it's the first thing I'd collect.
+\end{iq}
+
+\begin{iq}{What are the weaknesses of coverage scoring?}
+It rewards mentions, not depth: ``Python'' once counts as much as five years of it. It misses synonyms (``ML'' against ``machine learning''). And keyword stuffing wins. Meaning-based vectors would catch synonyms, and a Gemini grading step that quotes evidence, on the top candidates only, would judge depth.
+\end{iq}
+
+\begin{iq}{How do you stop the JD inventing things?}
+The recruiter must approve every JD before it's posted, which is the guard. The real fix is passing facts like pay, location and perks into the prompt, so Gemini never has to guess.
+\end{iq}
+
+\begin{bugfix}[Don't say]
+\begin{itemize}
+  \item ``Gemini reads every CV.'' It reads each JD once; code scores the CVs.
+  \item ``We matched by meaning vectors.'' That's the next step, not what was built.
+  \item ``The ranking is accurate.'' It wasn't measured against labels.
+\end{itemize}
+\end{bugfix}
