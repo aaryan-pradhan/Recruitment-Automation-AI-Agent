@@ -1,0 +1,194 @@
+\chapter{Bullet 1: the LangGraph agent}
+\label{ch:langgraph}
+
+\begin{cvline}
+Designed a multi-step AI agent with LangGraph automating candidate sourcing, CV parsing, and shortlisting, cutting cycle time by 80\%
+\end{cvline}
+
+%=====================================================================
+\section{Words you need}
+
+\subsection*{Graphs of steps}
+
+\begin{definition}[Graph: nodes and edges]
+A \dfn{workflow graph} is a set of steps (\dfn{nodes}) joined by arrows (\dfn{edges}) that say which step runs next. Here every node is an ordinary Python function.
+\end{definition}
+
+\begin{definition}[State]
+The \dfn{state} is one shared record passed from node to node: a Python dictionary with fixed keys (a \code{TypedDict} called \code{HiringState}): role, JD draft, recruiter feedback, status, and later candidates and scores. Each node reads it and returns an updated copy, \code{\{**state, ...\}}.
+\end{definition}
+
+\begin{definition}[Conditional edge, loop]
+A \dfn{conditional edge} picks the next node by looking at the state. It can point backwards, which makes a loop: ``if the recruiter asked for changes, go back to the JD writer; if approved, go on''. A plain chain of calls can't loop; a graph can.
+\end{definition}
+
+\begin{definition}[LangGraph]
+\dfn{LangGraph} is a Python library for exactly this: you declare a \code{StateGraph} with its state type, add nodes and edges (including conditional ones), compile it, and run it. It handles passing the state and following the edges.
+\end{definition}
+
+\begin{definition}[Status machine]
+A \dfn{status machine} is a field that can only move along allowed steps. Here: INIT $\to$ DRAFTED $\to$ NEEDS\_CHANGES $\rightleftarrows$ DRAFTED $\to$ APPROVED $\to$ POSTED. Code that publishes checks for APPROVED first, so an unapproved JD can never go out.
+\end{definition}
+
+\subsection*{Sourcing, parsing, shortlisting}
+
+\begin{definition}[Google Form intake]
+The approved JD goes into a Google Form with six questions: full name, email, years of experience, why you fit, a link to the CV on Google Drive (PDF), and a LinkedIn URL. Responses are read through the Forms API, 200 at a time.
+\end{definition}
+
+\begin{definition}[Drive file ID, text extraction]
+Every Drive file has an ID inside its link, for example \code{.../file/d/<id>/view}. The agent pulls the ID out of whatever link shape the applicant pasted, downloads the PDF, and extracts the text of the first 15 pages with \code{pypdf}.
+\end{definition}
+
+\begin{definition}[Failure status]
+A \dfn{failure status} is a label written next to an applicant instead of crashing: \code{missing\_resume}, \code{download\_error}. One bad link never stops the batch; it shows up in the log for a person to check.
+\end{definition}
+
+\subsection*{The 80\%}
+
+\begin{definition}[Cycle time, hands-on time]
+\dfn{Cycle time} here means the recruiter's \dfn{hands-on time} per role: the minutes a person actually spends from typing the role to the interview invites going out. Waiting time (applicants trickling in) isn't counted.
+\end{definition}
+
+\begin{definition}[Percentage reduction]
+Going from $a$ minutes to $b$ minutes is a \dfn{percentage reduction} of
+\[
+\frac{a - b}{a} = 1 - \frac{b}{a}.
+\]
+\end{definition}
+
+\begin{example}[Illustrative breakdown that gives 80\%]
+These are example numbers to show the arithmetic; replace them with your own before an interview.
+\begin{steps}
+  \item Manual: write the JD 60 min, post it 30, screen CVs 170, schedule interviews 40: total $a = 300$ min.
+  \item With the agent: approve the JD 15 min, review the ranked shortlist 30, approve the sends 15: total $b = 60$ min.
+  \item Reduction: $1 - 60/300 = 1 - 0.2 = 0.8 = 80\%$.
+\end{steps}
+Screening is the part that grows with the number of applicants, and it's the part the agent removes, so the saving is biggest on popular roles.
+\end{example}
+
+\begin{sayit}[Say it in 20 seconds]
+I modelled the hiring workflow as a LangGraph graph over one shared state. Gemini drafts the JD, and a conditional edge loops back to redraft with the recruiter's feedback until they approve. Then the agent publishes the JD with a Google Form, pulls the applications, downloads every CV from Drive, extracts the text and builds the shortlist, logging any failure instead of crashing. The recruiter's hands-on time per role fell by about 80\%.
+\end{sayit}
+
+%=====================================================================
+\section{The picture}
+
+\begin{sayit}[Board D · The JD graph, with its loop]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=9mm,inner sep=3pt}]
+\node[box=bdq] (a) at (0,0) {capture\_request};
+\node[box=bdv] (b) at (3.3,0) {generate\_jd\\(Gemini)};
+\node[box=bdy] (c) at (6.4,0) {get\_feedback\\(recruiter)};
+\node[box=bda] (d) at (10.6,0) {create\_form\\post\_linkedin};
+\draw[->] (a) -- (b); \draw[->] (b) -- (c);
+\draw[->,thmc,thick] (c) -- node[above,font=\sffamily\scriptsize]{APPROVED} (d);
+\draw[->,trapc,thick] (c.south) .. controls +(0,-1.2) and +(0,-1.2) .. node[below,font=\sffamily\scriptsize]{NEEDS\_CHANGES + feedback} (b.south);
+\end{tikzpicture}
+\end{pic}
+Say: ``Four nodes, one conditional edge. Changes requested: back to the writer with the feedback. Approved: on to publishing. The loop is why it's a graph and not a script.''
+\end{sayit}
+
+\begin{sayit}[Board E · The status machine]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=8mm,inner sep=3pt}]
+\node[box=bdq] (i) at (0,0) {INIT};
+\node[box=bdv] (d) at (2.6,0) {DRAFTED};
+\node[box=bdr] (n) at (2.6,-1.6) {NEEDS\_CHANGES};
+\node[box=bdg] (a) at (5.6,0) {APPROVED};
+\node[box=bda] (p) at (8.6,0) {POSTED};
+\draw[->] (i) -- (d); \draw[->] (d) -- (a); \draw[->] (a) -- (p);
+\draw[->] (d.south west) to[bend right=20] (n.north west); \draw[->] (n.north east) to[bend right=20] (d.south east);
+\node[font=\sffamily\scriptsize,text=trapc,align=center] at (8.6,-1.3) {post refused\\unless APPROVED};
+\end{tikzpicture}
+\end{pic}
+Say: ``The status can only move along these arrows. Posting checks for APPROVED, so the guard is in the data, not in anyone's memory.''
+\end{sayit}
+
+\begin{sayit}[Board F · Sourcing and parsing, step by step]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=9mm,inner sep=3pt}]
+\node[box=bda] (l) at (0,0) {LinkedIn post\\+ form link};
+\node[box=bda] (f) at (3,0) {Google Form\\6 questions};
+\node[box=bdq] (r) at (6,0) {responses\\200 per page};
+\node[box=bdq] (dr) at (9,0) {Drive link\\$\to$ file ID};
+\node[box=bdv] (p) at (9,-1.8) {pypdf: text of\\first 15 pages};
+\node[box=bdg] (s) at (5.4,-1.8) {score, rank,\\Shortlist tab};
+\node[box=bdr] (e) at (1.6,-1.8) {failure status,\\batch carries on};
+\draw[->] (l) -- (f); \draw[->] (f) -- (r); \draw[->] (r) -- (dr); \draw[->] (dr) -- (p); \draw[->] (p) -- (s);
+\draw[->,trapc] (dr.south west) -- node[above,sloped,font=\sffamily\scriptsize]{bad link} (e.north east);
+\end{tikzpicture}
+\end{pic}
+Say: ``Inbound only: the post links to a form, the form collects a CV link, the agent downloads and reads it. A bad link becomes a labelled row, never a crash.''
+\end{sayit}
+
+\begin{sayit}[Board G · Where the 80\% comes from (illustrative)]
+\begin{pic}
+\begin{tikzpicture}[font=\sffamily\scriptsize,x=0.035cm]
+\node[anchor=east] at (-4,0.3) {manual};
+\fill[defc!25,draw=defc] (0,0) rectangle (60,0.6); \node at (30,0.3) {JD 60};
+\fill[defc!15,draw=defc] (60,0) rectangle (90,0.6); \node at (75,0.3) {post 30};
+\fill[trapc!25,draw=trapc] (90,0) rectangle (260,0.6); \node at (175,0.3) {screen CVs 170};
+\fill[defc!15,draw=defc] (260,0) rectangle (300,0.6); \node at (280,0.3) {sched. 40};
+\node[anchor=east] at (-4,-0.7) {agent};
+\fill[thmc!25,draw=thmc] (0,-1) rectangle (15,-0.4); \fill[thmc!35,draw=thmc] (15,-1) rectangle (45,-0.4); \fill[thmc!25,draw=thmc] (45,-1) rectangle (60,-0.4);
+\node[anchor=west] at (64,-0.7) {approve 15 + review 30 + sends 15 $= 60$ min};
+\node[anchor=west] at (0,-1.5) {$1 - 60/300 = 80\%$ less hands-on time};
+\end{tikzpicture}
+\end{pic}
+Say: ``The biggest bar, reading CVs, is the one that grows with every applicant, and it's the one the agent takes away.''
+\end{sayit}
+
+%=====================================================================
+\section{How it works}
+\begin{enumerate}
+  \item \code{capture\_request} stores the role in the state; \code{generate\_jd} asks Gemini for a draft.
+  \item \code{get\_feedback} records Approve, Regenerate, or Edit with instructions; the conditional edge loops or moves on.
+  \item The approved JD is saved and seeds a second graph: create the Google Form, post on LinkedIn.
+  \item The pipeline pages through the responses, downloads each CV from Drive, extracts the text and records a failure status where needed.
+  \item Every CV is scored (Chapter 5); the top ones go to the Shortlist tab for the recruiter.
+\end{enumerate}
+
+%=====================================================================
+\section{The number: 80\%}
+
+\begin{measured}[The number]
+\begin{itemize}
+  \item \textbf{Definition:} recruiter hands-on minutes per role, request to invites sent, manual against agent.
+  \item \textbf{Arithmetic:} $1 - b/a$; for example $300 \to 60$ minutes.
+  \item \textbf{The catch:} it was timed on the roles you ran, not a controlled study, and no timing log is saved. The saving grows with the number of applicants.
+\end{itemize}
+\end{measured}
+
+%=====================================================================
+\section{What they will ask}
+
+\begin{iq}[\core]{Why LangGraph and not a plain script?}
+The JD step loops until the recruiter approves, and the steps share one evolving state. LangGraph gives that directly: a typed state, nodes, and conditional edges that can point backwards. A plain chain of LLM calls runs once, top to bottom, and can't loop.
+\end{iq}
+
+\begin{iq}[\core]{How does the approval loop work?}
+\code{get\_feedback} sets the status to APPROVED or NEEDS\_CHANGES with the recruiter's notes. A conditional edge routes on that status: back to \code{generate\_jd}, which redrafts using the feedback, or on to publishing. Nothing reaches a candidate without APPROVED.
+\end{iq}
+
+\begin{iq}[\core]{How do you measure the 80\%?}
+Recruiter hands-on minutes per role, from request to invites sent, manual against with the agent, on the roles we ran. The time saved is mostly CV reading, which scales with applicants. It's self-timed, not a controlled study, and I say so.
+\end{iq}
+
+\begin{iq}{What happens when a CV link is broken?}
+That applicant gets a failure status, \code{missing\_resume} or \code{download\_error}, in the log, and the batch carries on. A person can follow up; one bad link never stops the other 199.
+\end{iq}
+
+\begin{iq}{Why read only the first 15 pages?}
+A CV is one or two pages; anything longer is usually a mistaken upload, and capping the length keeps time and text bounded.
+\end{iq}
+
+\begin{bugfix}[Don't say]
+\begin{itemize}
+  \item ``Hiring is five times faster.'' It's hands-on time per role, down about 80\%.
+  \item ``The agent decides who to hire.'' It ranks; the recruiter decides.
+\end{itemize}
+\end{bugfix}
