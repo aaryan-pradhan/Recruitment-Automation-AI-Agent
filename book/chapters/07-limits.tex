@@ -1,0 +1,117 @@
+\chapter{Limits, and what next}
+\label{ch:limits}
+
+Interviewers like a candidate who knows where their own project stops. Raise these yourself, before they do.
+
+%=====================================================================
+\section{Words you need}
+
+\begin{definition}[Embedding, cosine similarity]
+An \dfn{embedding} turns a piece of text into a vector of numbers so that texts with similar meaning get similar vectors. Their closeness is the \dfn{cosine similarity}, $\cos(\mathbf u, \mathbf v) = \dfrac{\mathbf u \cdot \mathbf v}{\lVert \mathbf u \rVert\,\lVert \mathbf v \rVert}$, which is near 1 for the same direction. ``ML'' and ``machine learning'' would land close together, which word matching misses.
+\end{definition}
+
+\begin{example}[Toy: a synonym word matching misses]
+Say the criterion is ``machine learning'' and a CV says ``ML''. Their (toy) embeddings are $(0.9, 0.3)$ and $(0.8, 0.4)$.
+\begin{steps}
+  \item Dot product: $0.72 + 0.12 = 0.84$. Lengths: $\sqrt{0.90} = 0.949$ and $\sqrt{0.80} = 0.894$.
+  \item Cosine $= 0.84/(0.949 \times 0.894) = 0.99$: a match, where whole-word matching gave none.
+\end{steps}
+\end{example}
+
+\begin{definition}[LLM rubric]
+An \dfn{LLM rubric} asks the LLM to grade a CV against named criteria and to quote the line of the CV that supports each grade. Quoting keeps it checkable. It is expensive per CV, so it suits the top slice, not all 500.
+\end{definition}
+
+\begin{definition}[Selection-rate audit]
+A \dfn{selection-rate audit} compares the share of each group of applicants that gets shortlisted. A large gap is a warning sign of bias, even if no one intended it.
+\end{definition}
+
+\begin{definition}[Data retention]
+\dfn{Data retention}: How long personal data is kept. CVs are personal data of people who aren't users of the app, so they should be deleted after the role closes.
+\end{definition}
+
+\begin{sayit}[Say it in 20 seconds]
+Honest limits: matching is word-level, so synonyms are missed and keyword stuffing wins; the ranking was never checked against labelled picks; the 80\% is self-timed on a few roles. On the engineering side, emails were sent inside the request, so a retry could double-send, some calls blocked the async loop, and the Drive scope was wider than needed. Next: embeddings, an evidence-quoting rubric on the top slice, a background queue with sent-flags, and a bias audit.
+\end{sayit}
+
+%=====================================================================
+\section{The picture}
+
+\begin{sayit}[Board R · The ranking upgrade]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=9mm,inner sep=3pt}]
+\node[box=bdq] (a) at (0,0) {all CVs};
+\node[box=bda] (b) at (3.2,0) {embeddings:\\recall by meaning};
+\node[box=bdv] (c) at (6.8,0) {top 30: Gemini rubric\\quoting evidence};
+\node[box=bdg] (d) at (10.2,0) {recruiter\\decides};
+\draw[->] (a) -- (b); \draw[->] (b) -- (c); \draw[->] (c) -- (d);
+\node[font=\sffamily\scriptsize,text=prec] at (5,-1.1) {cheap and wide first, expensive and deep only where it matters};
+\end{tikzpicture}
+\end{pic}
+Say: ``Embeddings fix synonyms for everyone cheaply; the rubric judges depth on the few who might be interviewed.''
+\end{sayit}
+
+\begin{sayit}[Board S · Risks, and the guard for each]
+\begin{pic}
+\begin{tikzpicture}[font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=left,minimum height=8mm,inner sep=3pt,text width=46mm}]
+\node[box=bdr] at (0,0) {JD invents pay or perks}; \node[box=bdg] at (5.6,0) {approval; pass facts in the prompt};
+\node[box=bdr] at (0,-1) {keyword stuffing wins}; \node[box=bdg] at (5.6,-1) {rubric with quoted evidence};
+\node[box=bdr] at (0,-2) {CVs kept forever}; \node[box=bdg] at (5.6,-2) {delete after the role closes};
+\node[box=bdr] at (0,-3) {hidden bias}; \node[box=bdg] at (5.6,-3) {skills-only criteria; selection-rate audit};
+\node[box=bdr] at (0,-4) {double emails on retry}; \node[box=bdg] at (5.6,-4) {queue + sent-flag per candidate};
+\end{tikzpicture}
+\end{pic}
+Say: ``Each risk has a concrete guard. Some were built; the rest are the roadmap.''
+\end{sayit}
+
+\begin{sayit}[Board T · What the later rebuild changed]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=left,minimum height=9mm,inner sep=4pt,text width=50mm}]
+\node[font=\sffamily\small\bfseries] at (0,1.4) {CV version (2025)};
+\node[box=bdq] at (0,0) {sends inside the request\\Google Form + Drive scope\\tokens stored plain\\CVs kept};
+\node[font=\sffamily\small\bfseries] at (6.4,1.4) {Later rebuild};
+\node[box=bdg] at (6.4,0) {background tasks, sent-flags\\own apply page, narrower scopes\\encrypted tokens, rate limits\\CVs purged after the role};
+\end{tikzpicture}
+\end{pic}
+Say: ``Only if asked what I'd change: the rebuild fixed exactly the issues I'd list.''
+\end{sayit}
+
+%=====================================================================
+\section{What it does not show yet}
+\begin{itemize}
+  \item \textbf{Ranking quality:} never measured against the recruiter's own picks.
+  \item \textbf{The 80\%:} self-timed on the roles run, not a controlled study.
+  \item \textbf{Meaning:} word-level matching misses synonyms and depth.
+  \item \textbf{Reliability:} sends weren't idempotent; some calls blocked the event loop.
+  \item \textbf{Privacy and fairness:} no retention limit or bias audit in this version.
+\end{itemize}
+
+%=====================================================================
+\section{What they will ask}
+
+\begin{iq}[\core]{What would you improve first?}
+Make the sends safe: a background queue with a sent-flag per candidate. Then the ranking: embeddings for recall, a Gemini rubric quoting evidence on the top 30, and a small labelled set from the recruiter to measure precision at $K$. Then a calendar free/busy check and a bias audit.
+\end{iq}
+
+\begin{iq}[\core]{Isn't automated CV screening risky?}
+Yes, which is why the recruiter decides and the criteria are skills only, with matched skills shown for every score. What's missing is a selection-rate audit and a deletion policy for CVs; both belong before wider use, and some places regulate automated hiring tools.
+\end{iq}
+
+\begin{iq}[\core]{What was your part?}
+It was a team project. Say exactly which nodes or services you built, and use ``we'' for the rest.
+\end{iq}
+
+\begin{iq}{How would you evaluate the whole system?}
+Two numbers: time saved per role (timed properly on new roles) and ranking agreement with the recruiter (precision and recall at $K$). Plus the share of applicants who end with a failure status, which shows how robust intake is.
+\end{iq}
+
+\begin{bugfix}[Don't say]
+\begin{itemize}
+  \item ``The ranking is unbiased.'' It was never audited.
+  \item ``It's production-ready.'' The rebuild was needed for that.
+  \item ``I built it all.'' It was a team project.
+\end{itemize}
+\end{bugfix}
