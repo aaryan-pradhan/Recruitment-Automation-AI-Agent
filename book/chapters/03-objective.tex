@@ -1,0 +1,141 @@
+\chapter{The objective line}
+\label{ch:objective}
+
+\begin{cvline}
+\textbf{Recruitment Automation AI Agent | LangGraph \& Gemini API} \hfill [Jul 25 -- Aug 25]\\
+Objective: Built an end-to-end multi-agent LLM recruitment system automating candidate sourcing, resume parsing, and semantic ranking
+\end{cvline}
+
+%=====================================================================
+\section{Words you need}
+
+\subsection*{The hiring words}
+
+\begin{definition}[Job description, recruiter]
+A \dfn{job description} (JD) is the public text of a role: what the job is, the skills it needs, how to apply. The \dfn{recruiter} is the person hiring; here a small team's founder or hiring lead, with no HR software.
+\end{definition}
+
+\begin{definition}[Candidate sourcing]
+\dfn{Candidate sourcing}: Getting applicants for a role. Here it is \emph{inbound}: the JD is posted on LinkedIn with a link to a Google Form, and people apply through it. Nobody is scraped from websites.
+\end{definition}
+
+\begin{definition}[Resume parsing]
+\dfn{Resume parsing}: Turning a CV file, usually a PDF, into plain text a program can search. Here each CV is downloaded from Google Drive and its text pulled out with the \code{pypdf} library.
+\end{definition}
+
+\begin{definition}[Shortlist]
+The \dfn{shortlist} is the top of the ranked applicants: the few who get interviews.
+\end{definition}
+
+\subsection*{The AI words}
+
+\begin{definition}[API]
+An \dfn{API} (application programming interface) is a set of requests one program can send to another, such as ``write this text'' to Gemini or ``send this email'' to Gmail, with a fixed format for the reply.
+\end{definition}
+
+\begin{definition}[LLM, prompt]
+A \dfn{large language model} (LLM) is a neural network trained on huge amounts of text to predict the next word; given a written request, a \dfn{prompt}, it writes an answer. Gemini (Google's LLM, version 1.5 Flash here) is reached over the internet through its API.
+\end{definition}
+
+\begin{definition}[Agent, multi-agent]
+An \dfn{agent} is a program that carries out a multi-step task by itself, using an LLM for some steps and ordinary code or APIs for others. \dfn{Multi-agent} here means several specialised steps, each with one job (write the JD, collect CVs, score, schedule, email), working over one shared record of the task. It does not mean several chatbots talking to each other.
+\end{definition}
+
+\begin{definition}[Human in the loop]
+\dfn{Human in the loop}: The system stops at set points for a person to decide. Here the recruiter approves three things: the JD, the shortlist and the final picks. The agent does the reading, writing and sending in between.
+\end{definition}
+
+\begin{definition}[Lexical and semantic ranking]
+\dfn{Lexical matching} checks whether the same \emph{words} appear. \dfn{Semantic ranking} judges by \emph{meaning}. In this system the semantic step is Gemini reading the JD and deciding which skills the role really needs; the CVs are then matched to those skills word by word, which keeps every score explainable.
+\end{definition}
+
+\begin{sayit}[Say it in 20 seconds]
+It's a recruitment agent that runs a role end to end: Gemini writes the job description, the recruiter approves it, it's posted with an application form, the agent pulls and reads every CV, ranks them against criteria Gemini derived from the JD, and sends interview invites and result emails. The recruiter only makes the decisions.
+\end{sayit}
+
+%=====================================================================
+\section{The picture}
+
+\begin{sayit}[Board A · Who does what]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=8mm,inner sep=3pt,text width=22mm}]
+\node[box=bdv] (n0) at (0.0,0.0) {write JD\\[-1pt]\scriptsize(agent)};
+\node[box=bdy] (n1) at (3.6,0.0) {approve JD\\[-1pt]\scriptsize(recruiter)};
+\node[box=bdv] (n2) at (7.2,0.0) {post + form\\[-1pt]\scriptsize(agent)};
+\node[box=bdv] (n3) at (0.0,-1.4) {read CVs\\[-1pt]\scriptsize(agent)};
+\node[box=bdv] (n4) at (3.6,-1.4) {score + rank\\[-1pt]\scriptsize(agent)};
+\node[box=bdy] (n5) at (7.2,-1.4) {pick shortlist\\[-1pt]\scriptsize(recruiter)};
+\node[box=bdv] (n6) at (0.0,-2.8) {invites\\[-1pt]\scriptsize(agent)};
+\node[box=bdy] (n7) at (3.6,-2.8) {final picks\\[-1pt]\scriptsize(recruiter)};
+\node[box=bdv] (n8) at (7.2,-2.8) {result emails\\[-1pt]\scriptsize(agent)};
+\foreach \a/\b in {0/1,1/2,3/4,4/5,6/7,7/8} \draw[->] (n\a) -- (n\b);
+\draw[->] (n2.south) -- ++(0,-0.3) -| (n3.north);
+\draw[->] (n5.south) -- ++(0,-0.3) -| (n6.north);
+\end{tikzpicture}
+\end{pic}
+Say: ``Yellow is the recruiter, three decisions. Purple is the agent: all the reading, writing and sending.''
+\end{sayit}
+
+\begin{sayit}[Board B · Many steps, one shared record]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=8mm,inner sep=3pt}]
+\node[box=bdy,text width=40mm] (s) at (0,0) {shared state:\\role, JD draft, feedback,\\status, candidates, scores};
+\foreach \t/\a in {JD writer/90,sourcing/150,CV parser/210,scorer/270,scheduler/330,mailer/30} \node[box=bdv] (x) at (\a:3.3) {\t};
+\foreach \a in {90,150,210,270,330,30} \draw[<->,prec] (\a:2.4) -- (\a:1.3);
+\end{tikzpicture}
+\end{pic}
+Say: ``Each step is a specialist with one job. They don't chat; they read and write one shared record, so every step sees what the others did.''
+\end{sayit}
+
+\begin{sayit}[Board C · Lexical against semantic]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=8mm,inner sep=3pt}]
+\node[box=bdq] (jd) at (0,0) {JD text};
+\node[box=bdv] (g) at (3.1,0) {Gemini: what\\does the role need?};
+\node[box=bdy] (c) at (7.1,0) {criteria:\\python, docker, \dots};
+\node[box=bda] (m) at (11,0) {match each CV,\\word by word};
+\draw[->] (jd) -- (g); \draw[->] (g) -- node[above,font=\sffamily\scriptsize]{semantic} (c); \draw[->] (c) -- node[above,font=\sffamily\scriptsize]{lexical} (m);
+\end{tikzpicture}
+\end{pic}
+Say: ``Meaning is used once, where it matters: deciding what the role needs. Matching CVs to that list is plain and explainable.''
+\end{sayit}
+
+%=====================================================================
+\section{How it works}
+\begin{enumerate}
+  \item The recruiter types a role; Gemini drafts the JD; the recruiter approves or asks for changes.
+  \item The approved JD is posted on LinkedIn with a Google Form for applications.
+  \item The agent pulls the responses, downloads each CV from Drive and extracts its text.
+  \item Gemini turns the JD into criteria; each CV is scored against them and ranked.
+  \item The recruiter confirms the shortlist; invites go out; after interviews, result emails go out.
+\end{enumerate}
+
+%=====================================================================
+\section{What they will ask}
+
+\begin{iq}[\core]{Walk me through the system.}
+A recruiter types a role. The agent drafts the JD with Gemini and loops on the recruiter's feedback until it's approved. It posts the JD with an application form, pulls every CV from Drive, ranks them against criteria Gemini derived from the JD, sends calendar invites to the shortlist and result emails at the end. Over 500 candidates ranked; about 80\% less recruiter time per role.
+\end{iq}
+
+\begin{iq}[\core]{What do you mean by multi-agent?}
+Specialised steps, each with one job, over one shared record: one writes the JD, one sources, one parses, one scores, one schedules, one emails. They run in a fixed order. Not LLMs chatting with each other, which would be harder to control.
+\end{iq}
+
+\begin{iq}[\core]{Why keep a human in the loop?}
+Three decisions carry risk: what's published under the company's name, who gets interviewed, and who gets hired. The agent does the volume work; a person signs off on those three. Nothing reaches a candidate before the JD is approved.
+\end{iq}
+
+\begin{iq}{Why inbound applications instead of scraping LinkedIn?}
+Clean, structured data (every applicant fills the same form and uploads a PDF), and it stays within LinkedIn's terms. The cost is reach: only people who see the post apply.
+\end{iq}
+
+\begin{bugfix}[Don't say]
+\begin{itemize}
+  \item ``Fully autonomous'' or ``it hires automatically.'' The recruiter approves three steps.
+  \item ``We scraped LinkedIn.'' Applications came in through a form.
+  \item ``Agents talk to each other.'' The steps share one record in a fixed order.
+\end{itemize}
+\end{bugfix}
