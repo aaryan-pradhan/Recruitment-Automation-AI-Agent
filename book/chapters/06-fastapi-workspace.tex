@@ -1,0 +1,223 @@
+\chapter{Bullet 3: the async backend and Google Workspace}
+\label{ch:backend}
+
+\begin{cvline}
+Deployed an async FastAPI backend with Google Workspace API orchestration for scheduling, email triggers, and a real-time dashboard
+\end{cvline}
+
+%=====================================================================
+\section{Words you need}
+
+\subsection*{The web service}
+
+\begin{definition}[Backend, endpoint]
+The \dfn{backend} is the server program the recruiter's web page talks to. An \dfn{endpoint} is one address it answers, with an HTTP method saying what to do: \code{POST /api/v1/jobs/} creates a role, \code{POST /jobs/\{id\}/approve} approves its JD, \code{GET /jobs/} lists them.
+\end{definition}
+
+\begin{definition}[FastAPI, Pydantic]
+\dfn{FastAPI} is a Python web framework: you write a function per endpoint and it handles the HTTP. With \dfn{Pydantic} models it checks every request's fields and types before your code runs, and it writes interactive API documentation automatically (\code{/docs}).
+\end{definition}
+
+\begin{definition}[Async, event loop]
+An \dfn{async} server handles many requests on one thread. Each endpoint is an \code{async def}; when it waits on the network (\code{await} an HTTP call), the \dfn{event loop} switches to another request instead of sitting idle.
+\end{definition}
+
+\begin{definition}[Blocking call]
+A \dfn{blocking call} is one that waits without handing control back, for example a synchronous SDK call inside an \code{async def}. While it waits, the whole event loop waits, and every other request stalls.
+\end{definition}
+
+\begin{example}[Toy: 10 requests, each needing a 2-second Gemini call]
+Compare the two ways of waiting.
+\begin{steps}
+  \item Awaited (or run in a thread pool): the 10 waits overlap, so all finish after about 2 seconds.
+  \item Blocking inside \code{async def}: they run one after another: $10 \times 2 = 20$ seconds, and the last user waits 20.
+  \item In your code the Gemini SDK and database calls were synchronous inside \code{async def}. The fix: plain \code{def} endpoints (FastAPI then uses a thread pool), \code{run\_in\_threadpool}, or async clients.
+\end{steps}
+\end{example}
+
+\begin{definition}[JWT, password hashing]
+A \dfn{JWT} (JSON Web Token) is a login pass: a small signed text the server hands out after login, \code{header.payload.signature}. The payload says who the user is and when the pass expires; the signature, made with a server secret, means it can't be forged. Every request carries it. \dfn{Password hashing} (bcrypt) stores a one-way scramble of each password, never the password itself.
+\end{definition}
+
+\begin{definition}[Postgres, ownership filter]
+\dfn{Postgres} is the database: roles, drafts, statuses and users live there, so they survive restarts. Every query is filtered by the logged-in user's ID, so nobody can see or change another recruiter's roles.
+\end{definition}
+
+\subsection*{Google Workspace}
+
+\begin{definition}[OAuth, scope, refresh token]
+\dfn{OAuth} lets the recruiter grant the app limited access to their Google account without giving it their password. A \dfn{scope} names one permission: \code{forms.body}, \code{spreadsheets}, \code{gmail.send} (send only, never read). A \dfn{refresh token} lets the app get fresh short-lived access later without asking again.
+\end{definition}
+
+\begin{definition}[Workspace APIs]
+The \dfn{Google Workspace APIs} used: \textbf{Forms} (create the application form, read responses), \textbf{Drive} (download CVs), \textbf{Sheets} (a log with tabs Raw, Shortlist and Outcome) and \textbf{Gmail} (send invites and result emails from the recruiter's own address).
+\end{definition}
+
+\begin{definition}[Calendar invite (.ics)]
+An \dfn{.ics invite} is a small text file in the iCalendar format. Sent by email as a \code{text/calendar} part with \code{METHOD:REQUEST}, it shows up in the candidate's mail as an invitation they can accept. Times are written in UTC.
+\end{definition}
+
+\begin{example}[Toy: the interview schedule]
+Slots start at 10:00 India time, 45 minutes each with 15-minute gaps, at most 8 a day.
+\begin{steps}
+  \item Each slot plus gap is 60 minutes, so slot $k$ (counting from 0) starts at $10{:}00 + k$ hours.
+  \item The 8th slot ($k = 7$) runs 17:00--17:45.
+  \item India is UTC$+5{:}30$, so 10:00 IST is written in the invite as 04:30 UTC.
+\end{steps}
+\end{example}
+
+\begin{definition}[Email triggers, idempotency]
+\dfn{Email triggers}: Emails sent automatically when a stage completes: invites when the shortlist is confirmed, offer and regret emails when the recruiter picks. An action is \dfn{idempotent} if doing it twice has the same effect as once. Sending email isn't, by default: a rerun after a crash can email people twice.
+\end{definition}
+
+\begin{definition}[Real-time dashboard]
+The \dfn{dashboard} is a web page (Next.js) showing each role's status and counts (applied, scored, shortlisted, invited), next to the Google Sheet whose tabs fill in as each stage runs. ``Real-time'' here means it reflects each stage as it completes, on refresh.
+\end{definition}
+
+\begin{sayit}[Say it in 20 seconds]
+The agent runs behind an async FastAPI backend: JWT login, Postgres, and a status machine so a JD can't be posted until it's approved. Google Workspace APIs do the orchestration: Forms for applications, Drive for CVs, Sheets as a live log, and Gmail for calendar invites and result emails, all through the recruiter's own account with narrow scopes. A dashboard shows each role's progress.
+\end{sayit}
+
+%=====================================================================
+\section{The picture}
+
+\begin{sayit}[Board L · The API]
+\begin{pic}
+\begin{tikzpicture}[font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=left,minimum height=7mm,inner sep=3pt}]
+\node[box=bda,text width=58mm,anchor=west] at (0,0) {\texttt{POST /jobs/}}; \node[anchor=west] at (6.4,0) {save role, Gemini draft $\to$ DRAFTED};
+\node[box=bda,text width=58mm,anchor=west] at (0,-0.75) {\texttt{POST /jobs/\{id\}/refine}}; \node[anchor=west] at (6.4,-0.75) {redraft with feedback};
+\node[box=bdg,text width=58mm,anchor=west] at (0,-1.5) {\texttt{POST /jobs/\{id\}/approve}}; \node[anchor=west] at (6.4,-1.5) {freeze JD $\to$ APPROVED};
+\node[box=bdr,text width=58mm,anchor=west] at (0,-2.25) {\texttt{POST /jobs/\{id\}/post-linkedin}}; \node[anchor=west] at (6.4,-2.25) {only if APPROVED $\to$ POSTED};
+\node[box=bdq,text width=58mm,anchor=west] at (0,-3.0) {\texttt{GET, PUT, DELETE /jobs/\dots}}; \node[anchor=west] at (6.4,-3.0) {own roles only (user ID filter)};
+\end{tikzpicture}
+\end{pic}
+Say: ``Each step of the agent is an endpoint, and every endpoint checks the user's token and the role's status first.''
+\end{sayit}
+
+\begin{sayit}[Board M · Why a blocking call hurts an async server]
+\begin{pic}
+\begin{tikzpicture}[font=\sffamily\scriptsize,x=0.45cm]
+\node[anchor=east] at (-0.3,1.6) {awaited};
+\foreach \i in {0,...,4} \fill[thmc!40,draw=thmc] (0,1.9-\i*0.15) rectangle (2,1.78-\i*0.15);
+\node[anchor=west] at (2.2,1.5) {5 requests overlap: done at 2 s};
+\node[anchor=east] at (-0.3,0.2) {blocking};
+\foreach \i in {0,...,4} \fill[trapc!40,draw=trapc] (\i*2,0) rectangle (\i*2+2,0.4);
+\node[anchor=west] at (10.2,0.2) {one after another: 10 s};
+\draw[->] (0,-0.4) -- (12,-0.4) node[right]{time (s)};
+\foreach \x in {0,2,4,6,8,10} \node[below] at (\x,-0.4) {\x};
+\end{tikzpicture}
+\end{pic}
+Say: ``One synchronous call inside \texttt{async def} freezes the loop for everyone. Use a thread pool or an async client.''
+\end{sayit}
+
+\begin{sayit}[Board N · OAuth: the recruiter grants narrow access]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=9mm,inner sep=3pt}]
+\node[box=bdn] (r) at (0,0) {recruiter};
+\node[box=bdy] (g) at (3.6,0) {Google consent:\\forms, sheets,\\drive, gmail.send};
+\node[box=bda] (t) at (7.4,0) {refresh token\\stored};
+\node[box=bdg] (a) at (10.6,0) {app calls\\the APIs};
+\draw[->] (r) -- (g); \draw[->] (g) -- (t); \draw[->] (t) -- (a);
+\end{tikzpicture}
+\end{pic}
+Say: ``The recruiter approves specific permissions once. Gmail is send-only. Emails go from their own address, so candidates see a real person.''
+\end{sayit}
+
+\begin{sayit}[Board O · The interview day]
+\begin{pic}
+\begin{tikzpicture}[font=\sffamily\scriptsize,x=1.3cm]
+\draw[->] (0,0) -- (8.3,0);
+\foreach \k in {0,...,7} {\fill[thmc!35,draw=thmc] (\k,0.1) rectangle (\k+0.75,0.6); \node[below] at (\k,0) {\the\numexpr10+\k\relax:00};}
+\node[anchor=west] at (0,0.95) {45-min interview + 15-min gap, 8 a day; 10:00 IST $=$ 04:30 UTC in the invite};
+\end{tikzpicture}
+\end{pic}
+Say: ``Slots are generated, written in UTC into an .ics file, and sent by Gmail as a real calendar invitation.''
+\end{sayit}
+
+\begin{sayit}[Board P · The Sheet as a live log]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=left,minimum height=9mm,inner sep=3pt,text width=32mm}]
+\node[box=bdq] (a) at (0,0) {\textbf{Raw}\\every response + status};
+\node[box=bdy] (b) at (4,0) {\textbf{Shortlist}\\name, email, score, CV};
+\node[box=bdg] (c) at (8,0) {\textbf{Outcome}\\result + Gmail message ID};
+\draw[->] (a) -- (b); \draw[->] (b) -- (c);
+\end{tikzpicture}
+\end{pic}
+Say: ``Every stage writes to its tab as it runs, so the Sheet doubles as an audit trail of who was scored, shortlisted and emailed.''
+\end{sayit}
+
+\begin{sayit}[Board Q · The double-send risk, and its fix]
+\begin{pic}
+\begin{tikzpicture}[>={Latex[length=2mm]},font=\sffamily\small,
+  box/.style={draw=#1L,fill=#1,rounded corners=2pt,align=center,minimum height=9mm,inner sep=3pt}]
+\node[box=bdr] (a) at (0,0) {send 50 invites\\inside the request};
+\node[box=bdr] (b) at (3.8,0) {crash at\\number 30};
+\node[box=bdr] (c) at (7.6,0) {rerun: 30 people\\emailed twice};
+\draw[->] (a) -- (b); \draw[->] (b) -- (c);
+\node[box=bdg] (d) at (0,-1.7) {background queue};
+\node[box=bdg] (e) at (3.8,-1.7) {sent-flag per\\candidate};
+\node[box=bdg] (f) at (7.6,-1.7) {rerun sends only\\to the unflagged};
+\draw[->] (d) -- (e); \draw[->] (e) -- (f);
+\end{tikzpicture}
+\end{pic}
+Say: ``Sending email isn't idempotent. A per-candidate sent-flag makes a retry safe; the later rebuild did exactly that.''
+\end{sayit}
+
+%=====================================================================
+\section{How it works}
+\begin{enumerate}
+  \item The recruiter logs in (JWT); creating a role calls Gemini and stores the draft in Postgres as DRAFTED.
+  \item Refine and approve move the status; posting is refused unless it is APPROVED.
+  \item With the recruiter's OAuth grant, the backend creates the Form, reads responses, downloads CVs and writes the Sheet tabs.
+  \item On the confirmed shortlist it builds slots and sends .ics invites by Gmail; after the final picks, offer and regret emails, each logged.
+  \item The dashboard shows each role's status and counts. The service was containerised with Docker for deployment.
+\end{enumerate}
+
+%=====================================================================
+\section{The numbers}
+
+\begin{measured}[The number]
+\begin{itemize}
+  \item \textbf{Schedule:} 8 slots a day, 10:00--17:45 India time, 45 + 15 minutes each.
+  \item \textbf{Scopes:} Forms, Sheets and Drive for the pipeline; Gmail send-only.
+  \item \textbf{The catch:} the bullet's ``real-time'' is per stage on refresh, not live streaming; there was no calendar free/busy check.
+\end{itemize}
+\end{measured}
+
+%=====================================================================
+\section{What they will ask}
+
+\begin{iq}[\core]{Why FastAPI?}
+Async request handling for a service that mostly waits on other APIs, request validation from Pydantic types, and automatic API docs. Flask is synchronous by default; Django is heavier than this service needed.
+\end{iq}
+
+\begin{iq}[\core]{Was it really async?}
+The endpoints were \code{async def} and the LinkedIn call was an awaited HTTP request. But the Gemini SDK and database calls were synchronous inside them, which blocks the event loop. I'd make those endpoints plain \code{def} so FastAPI runs them in a thread pool, or switch to async clients.
+\end{iq}
+
+\begin{iq}[\core]{How do you stop a candidate being emailed twice?}
+In this version sends ran inside the request, so a crash mid-batch and a rerun could double-send. The fix is a background queue plus a sent-timestamp per candidate: each run sends only to people without one. The project's later rebuild does that.
+\end{iq}
+
+\begin{iq}{How is access secured?}
+JWT login with bcrypt-hashed passwords; every query filtered by the user's ID; OAuth with narrow scopes, Gmail send-only; secrets in environment variables, never in git. What I'd tighten: encrypt stored OAuth tokens, and narrow the Drive scope to only the files we need.
+\end{iq}
+
+\begin{iq}{Why send invites as .ics over Gmail rather than the Calendar API?}
+An .ics invite from the recruiter's own Gmail works in every calendar app and needs no extra calendar permission. The Calendar API would add free/busy checks, which is the next step: right now slots don't check the recruiter's calendar.
+\end{iq}
+
+\begin{iq}{What does ``real-time dashboard'' mean here?}
+The dashboard and the Sheet reflect each stage as it completes: applied, scored, shortlisted, invited. It updates on refresh rather than over a live socket.
+\end{iq}
+
+\begin{bugfix}[Don't say]
+\begin{itemize}
+  \item ``WebSockets'' or ``live streaming''. It's per-stage, on refresh.
+  \item ``Fully non-blocking.'' Some calls blocked the loop.
+  \item ``Django'' (unless asked what changed later).
+\end{itemize}
+\end{bugfix}
